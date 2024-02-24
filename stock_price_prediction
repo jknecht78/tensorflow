@@ -29,8 +29,6 @@ def check_gpu():
     local_device_protos = device_lib.list_local_devices()
     return [x.name for x in local_device_protos if x.device_type == 'GPU']
 
-
-
 def load_data(symbol):
     ticker = yf.Ticker(symbol)
     data = ticker.history(period="5y")
@@ -68,7 +66,7 @@ def build_model(X_train):
 def compile_and_fit_model(model, X_train, y_train):
     model.compile(loss='mean_squared_error', optimizer='adam')
     with tf.device('/device:GPU:0'):
-        model.fit(X_train, y_train, epochs=30, batch_size=1024, verbose=0)
+        model.fit(X_train, y_train, epochs=1000, batch_size=1024*4, verbose=0)
     return model
 
 def predict_prices(model, X_train, data, scaler):
@@ -96,18 +94,23 @@ def add_predicted_prices_to_future(model, X_test, future, scaler):
 
 def plot_data(data, future, symbol):
     merged_data = pd.concat([data, future], axis=1)
+    merged_data = merged_data.tail(90)
+    # calculate RSME
+    rmse = np.sqrt(np.mean(np.square(merged_data['hidden_actual'].tail(30) - merged_data['predicted'].tail(30))))
+    
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=merged_data.index, y=merged_data.actual, mode='lines', name='Actual', line=dict(color='blue', width=2, dash='solid')))
     fig.add_trace(go.Scatter(x=merged_data.index, y=merged_data.hidden_actual, mode='lines', name='Hidden Actual', line=dict(color='blue', width=2, dash='dot')))
     fig.add_trace(go.Scatter(x=merged_data.index, y=merged_data['train_predict'], mode='lines', name='train data', line=dict(color='red', width=2, dash='dot')))
     fig.add_trace(go.Scatter(x=merged_data.index, y=merged_data['predicted'], mode='lines', name='predicted data', line=dict(color='green', width=2, dash='dot')))
-    fig.update_layout(title=f'[{symbol}] Stock Price', yaxis_title='Price', template='plotly_dark', xaxis_rangeslider_visible=True)
+    fig.update_layout(title=f'[{symbol}] Stock Price [RMSE: {rmse:.2f}]', yaxis_title='Price', template='plotly_dark')
     fig.update_xaxes(showgrid=False)
-    fig.show()
+    #fig.show()
+    # save the plot as a .png file 
+    fig.write_image(f"/home/joe/tensorflow/charts/{symbol}.png", width=1920, height=1080, scale=1)
+    
 
-def main():
-    print(check_gpu())
-    symbol = "MSFT"
+def predict_stock_future_prices(symbol):
     future_days = 30
     prediction_days = 60
 
@@ -120,7 +123,16 @@ def main():
     data = predict_prices(model, X_train, data, scaler)
     X_test = create_test_data(data, future, prediction_days, scaler)
     future = add_predicted_prices_to_future(model, X_test, future, scaler)
+
+    
+
     plot_data(data, future, symbol)
+
+
+def main():
+    symbols = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'META', 'TSLA', 'NVDA', 'INTC', 'CSCO', 'ADBE', 'PYPL', 'NFLX', 'CMCSA', 'PEP', 'COST', 'TMUS', 'AVGO', 'QCOM', 'TXN', 'INTU', 'AMD', 'MU', 'AMAT', 'LRCX']    
+    for symbol in symbols:
+        predict_stock_future_prices(symbol)
 
 if __name__ == "__main__":
     main()
