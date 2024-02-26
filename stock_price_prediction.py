@@ -107,7 +107,7 @@ def plot_data(data, future, symbol):
     fig.update_xaxes(showgrid=False)
     #fig.show()
     # save the plot as a .png file 
-    fig.write_image(f"/home/joe/tensorflow/charts/{symbol}.png", width=1920, height=1080, scale=1)
+    fig.write_image(f"./charts/{symbol}.png", width=1920, height=1080, scale=1)
     
 
 def predict_stock_future_prices(symbol):
